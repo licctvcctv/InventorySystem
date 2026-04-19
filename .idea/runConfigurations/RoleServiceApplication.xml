@@ -1,0 +1,9 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="RoleServiceApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="role-service" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.example.roleservice.RoleServiceApplication" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

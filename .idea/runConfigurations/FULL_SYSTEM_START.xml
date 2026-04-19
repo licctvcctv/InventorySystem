@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="FULL_SYSTEM_START" type="CompoundRunConfigurationType">
+    <toRun name="BaseServiceApplication" type="SpringBootApplicationConfigurationType" />
+    <toRun name="InventoryServiceApplication" type="SpringBootApplicationConfigurationType" />
+    <toRun name="OrderServiceApplication" type="SpringBootApplicationConfigurationType" />
+    <toRun name="RoleServiceApplication" type="SpringBootApplicationConfigurationType" />
+    <toRun name="UserServiceApplication" type="SpringBootApplicationConfigurationType" />
+    <method v="2" />
+  </configuration>
+</component>
