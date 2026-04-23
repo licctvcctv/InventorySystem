@@ -7,8 +7,6 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: 123456
       TZ: Asia/Shanghai
-    ports:
-      - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       - ./docs:/docker-entrypoint-initdb.d
@@ -29,8 +27,7 @@ services:
       JVM_XMS: 256m
       JVM_XMX: 256m
     ports:
-      - "8848:8848"
-      - "9848:9848"
+      - "127.0.0.1:${NACOS_PORT:-18848}:8848"
     depends_on:
       mysql:
         condition: service_healthy
@@ -48,8 +45,6 @@ services:
     environment:
       SEATA_PORT: 8091
       STORE_MODE: file
-    ports:
-      - "8091:8091"
     networks:
       - ims-network
     healthcheck:
@@ -63,8 +58,6 @@ services:
   user-service:
     build: ./backend/user-service
     container_name: ims-user-service
-    ports:
-      - "8081:8081"
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/user_service_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
@@ -83,8 +76,6 @@ services:
   role-service:
     build: ./backend/role-service
     container_name: ims-role-service
-    ports:
-      - "8082:8082"
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/role_service_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
@@ -103,8 +94,6 @@ services:
   order-service:
     build: ./backend/order-service
     container_name: ims-order-service
-    ports:
-      - "8083:8083"
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/order_service_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
@@ -129,8 +118,6 @@ services:
   inventory-service:
     build: ./backend/inventory-service
     container_name: ims-inventory-service
-    ports:
-      - "8084:8084"
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/inventory_service_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
@@ -153,8 +140,6 @@ services:
   base-service:
     build: ./backend/base-service
     container_name: ims-base-service
-    ports:
-      - "8085:8085"
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/base_service_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
@@ -180,8 +165,6 @@ services:
     build: ./backend/gateway-service
     container_name: ims-gateway
     restart: on-failure
-    ports:
-      - "9090:9090"
     environment:
       NACOS_ADDR: nacos:8848
     depends_on:
@@ -206,7 +189,7 @@ services:
     build: ./frontend
     container_name: ims-frontend
     ports:
-      - "80:80"
+      - "127.0.0.1:${FRONTEND_PORT:-18080}:80"
     depends_on:
       - gateway
     networks:
