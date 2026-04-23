@@ -58,7 +58,7 @@ public class BaseController {
 
     // --- Supplier ---
     @GetMapping("/suppliers")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'PROCUREMENT')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('ADMIN', 'PROCUREMENT', 'WAREHOUSE')")
     public Object getSuppliers(@RequestParam(value = "page", defaultValue = "1") int page,
             @RequestParam(value = "size", defaultValue = "10") int size,
             @RequestParam(value = "keyword", required = false) String keyword) {
