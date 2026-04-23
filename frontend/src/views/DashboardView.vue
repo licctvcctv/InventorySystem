@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import request from '../api/request'
 import { useRouter, useRoute } from 'vue-router'
 import { computed } from 'vue'
+import { hasAnyRole, isAdminRole } from '../utils/access'
 
 const router = useRouter()
 const username = ref('')
@@ -24,21 +25,28 @@ const route = useRoute()
 const activeMenu = computed(() => route.path)
 const userRole = ref('')
 
-const hasRole = (roles: string[]) => {
-    return roles.includes(userRole.value) || userRole.value === 'ROLE_ADMIN' || userRole.value === 'admin'
-}
+const hasRole = (roles: string[]) => hasAnyRole(userRole.value, roles)
 
-const isAdmin = computed(() => {
-    return userRole.value === 'ROLE_ADMIN' || userRole.value === 'admin'
-})
+const isAdmin = computed(() => isAdminRole(userRole.value))
 
 const canSeeFinance = computed(() => hasRole(['ROLE_FINANCE']))
 const canSeeCustomer = computed(() => hasRole(['ROLE_SALES']))
 const canSeeSupplier = computed(() => hasRole(['ROLE_PROCUREMENT']))
 const canSeeStock = computed(() => hasRole(['ROLE_WAREHOUSE']))
-const canSeeProducts = computed(() => hasRole(['ROLE_WAREHOUSE', 'ROLE_SALES', 'ROLE_PROCUREMENT']))
+const canManageProducts = computed(() => hasRole(['ROLE_WAREHOUSE']))
+const canManageCategories = computed(() => hasRole(['ROLE_WAREHOUSE']))
 const canSeePurchase = computed(() => hasRole(['ROLE_PROCUREMENT']))
 const canSeeSales = computed(() => hasRole(['ROLE_SALES']))
+const canSeeOrders = computed(() => hasRole(['ROLE_SALES', 'ROLE_PROCUREMENT']))
+const canSeeReport = computed(() => hasRole(['ROLE_SALES', 'ROLE_PROCUREMENT', 'ROLE_WAREHOUSE', 'ROLE_FINANCE']))
+const canSeeBase = computed(() =>
+    canManageProducts.value ||
+    canManageCategories.value ||
+    canSeeStock.value ||
+    canSeeCustomer.value ||
+    canSeeSupplier.value ||
+    canSeeFinance.value
+)
 
 onMounted(() => {
     const token = localStorage.getItem('token')
@@ -100,7 +108,7 @@ const handleLogout = () => {
           <el-icon><House /></el-icon>
           <span>首页</span>
         </el-menu-item>
-        <el-menu-item index="/dashboard/report">
+        <el-menu-item index="/dashboard/report" v-if="canSeeReport">
           <el-icon><DataAnalysis /></el-icon>
           <span>统计报表</span>
         </el-menu-item>
@@ -139,7 +147,7 @@ const handleLogout = () => {
         </el-sub-menu>
 
         <!-- 旧订单管理 -->
-        <el-sub-menu index="2">
+        <el-sub-menu index="orders" v-if="canSeeOrders">
           <template #title>
             <el-icon><Goods /></el-icon>
             <span>订单管理</span>
@@ -170,13 +178,13 @@ const handleLogout = () => {
         </el-sub-menu>
 
         <!-- 基础信息管理 -->
-        <el-sub-menu index="base">
+        <el-sub-menu index="base" v-if="canSeeBase">
           <template #title>
             <el-icon><DataBoard /></el-icon>
             <span>基础信息管理</span>
           </template>
-          <el-menu-item index="/dashboard/base/products">商品信息</el-menu-item>
-          <el-menu-item index="/dashboard/inventory/categories">商品分类</el-menu-item>
+          <el-menu-item index="/dashboard/base/products" v-if="canManageProducts">商品信息</el-menu-item>
+          <el-menu-item index="/dashboard/inventory/categories" v-if="canManageCategories">商品分类</el-menu-item>
           <el-menu-item index="/dashboard/inventory/warehouses" v-if="canSeeStock">仓库管理</el-menu-item>
           <el-menu-item index="/dashboard/base/customers" v-if="canSeeCustomer">客户管理</el-menu-item>
           <el-menu-item index="/dashboard/base/suppliers" v-if="canSeeSupplier">供应商管理</el-menu-item>

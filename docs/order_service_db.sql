@@ -16,6 +16,20 @@
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
+CREATE DATABASE IF NOT EXISTS `order_service_db` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `order_service_db`;
+
+-- Seata AT transaction undo log table
+CREATE TABLE IF NOT EXISTS `undo_log` (
+  `branch_id` bigint NOT NULL COMMENT 'Branch transaction id',
+  `xid` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Global transaction id',
+  `context` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Undo log context',
+  `rollback_info` longblob NOT NULL COMMENT 'Rollback info',
+  `log_status` int NOT NULL COMMENT '0: normal, 1: defense',
+  `log_created` datetime(6) NOT NULL COMMENT 'Create time',
+  `log_modified` datetime(6) NOT NULL COMMENT 'Modify time',
+  UNIQUE KEY `ux_undo_log` (`xid`, `branch_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Seata AT undo log';
 
 -- ----------------------------
 -- Table structure for order_items
