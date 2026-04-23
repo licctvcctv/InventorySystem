@@ -1,0 +1,11 @@
+.git
+.idea
+test-artifacts
+*.zip
+frontend/node_modules
+frontend/dist
+**/target
+**/.mvn
+**/.settings
+**/.classpath
+**/.project

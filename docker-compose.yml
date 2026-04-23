@@ -56,13 +56,19 @@ services:
   # ==================== 业务微服务 ====================
 
   user-service:
-    build: ./backend/user-service
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_PATH: backend/user-service
+        SERVICE_PORT: 8081
     container_name: ims-user-service
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/user_service_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: 123456
       NACOS_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_ENABLED: "false"
     depends_on:
       mysql:
         condition: service_healthy
@@ -74,13 +80,19 @@ services:
       - ims-network
 
   role-service:
-    build: ./backend/role-service
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_PATH: backend/role-service
+        SERVICE_PORT: 8082
     container_name: ims-role-service
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/role_service_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: 123456
       NACOS_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_ENABLED: "false"
     depends_on:
       mysql:
         condition: service_healthy
@@ -92,7 +104,12 @@ services:
       - ims-network
 
   order-service:
-    build: ./backend/order-service
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_PATH: backend/order-service
+        SERVICE_PORT: 8083
     container_name: ims-order-service
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/order_service_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
@@ -116,7 +133,12 @@ services:
       - ims-network
 
   inventory-service:
-    build: ./backend/inventory-service
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_PATH: backend/inventory-service
+        SERVICE_PORT: 8084
     container_name: ims-inventory-service
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/inventory_service_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
@@ -138,7 +160,12 @@ services:
       - ims-network
 
   base-service:
-    build: ./backend/base-service
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_PATH: backend/base-service
+        SERVICE_PORT: 8085
     container_name: ims-base-service
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/base_service_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
@@ -162,7 +189,12 @@ services:
   # ==================== API 网关 ====================
 
   gateway:
-    build: ./backend/gateway-service
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        SERVICE_PATH: backend/gateway-service
+        SERVICE_PORT: 9090
     container_name: ims-gateway
     restart: on-failure
     environment:
