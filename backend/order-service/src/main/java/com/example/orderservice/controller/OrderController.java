@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -113,7 +115,11 @@ public class OrderController {
     @PostMapping("/payments")
     public ResponseEntity<Boolean> createPayment(@RequestBody PaymentRecord record) {
         record.setType("PAYMENT");
-        return ResponseEntity.ok(paymentRecordMapper.insert(record) > 0);
+        boolean ok = paymentRecordMapper.insert(record) > 0;
+        if (ok && record.getSourceOrderId() != null) {
+            updateOrderPaymentState(record.getSourceOrderId(), "PAYMENT");
+        }
+        return ResponseEntity.ok(ok);
     }
 
     // ==================== 收款记录 ====================
@@ -138,6 +144,46 @@ public class OrderController {
     @PostMapping("/receipts")
     public ResponseEntity<Boolean> createReceipt(@RequestBody PaymentRecord record) {
         record.setType("RECEIPT");
-        return ResponseEntity.ok(paymentRecordMapper.insert(record) > 0);
+        boolean ok = paymentRecordMapper.insert(record) > 0;
+        if (ok && record.getSourceOrderId() != null) {
+            updateOrderPaymentState(record.getSourceOrderId(), "RECEIPT");
+        }
+        return ResponseEntity.ok(ok);
+    }
+
+    /**
+     * 根据已有的付款/收款记录汇总，自动更新订单的 paymentStatus 和 orderDebt
+     */
+    private void updateOrderPaymentState(Long orderId, String payType) {
+        Order order = orderService.getById(orderId);
+        if (order == null) return;
+
+        // 汇总该订单所有同类型的已付金额
+        LambdaQueryWrapper<PaymentRecord> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PaymentRecord::getSourceOrderId, orderId);
+        wrapper.eq(PaymentRecord::getType, payType);
+        List<PaymentRecord> records = paymentRecordMapper.selectList(wrapper);
+
+        BigDecimal totalPaid = BigDecimal.ZERO;
+        for (PaymentRecord r : records) {
+            if (r.getAmountPaid() != null) {
+                totalPaid = totalPaid.add(r.getAmountPaid());
+            }
+        }
+
+        BigDecimal dealAmount = order.getDealAmount() != null ? order.getDealAmount() : order.getTotalAmount();
+        BigDecimal debt = dealAmount.subtract(totalPaid);
+        if (debt.compareTo(BigDecimal.ZERO) < 0) debt = BigDecimal.ZERO;
+
+        order.setOrderDebt(debt);
+        if (debt.compareTo(BigDecimal.ZERO) == 0) {
+            order.setPaymentStatus(2); // 已付/已收
+        } else if (totalPaid.compareTo(BigDecimal.ZERO) > 0) {
+            order.setPaymentStatus(1); // 部分付款
+        } else {
+            order.setPaymentStatus(0); // 未付
+        }
+        order.setUpdatedAt(LocalDateTime.now());
+        orderService.updateById(order);
     }
 }

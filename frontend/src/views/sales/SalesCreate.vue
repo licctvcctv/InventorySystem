@@ -35,11 +35,21 @@ const addItem = () => {
 }
 const removeItem = (idx: number) => { if (form.items.length > 1) form.items.splice(idx, 1) }
 
+/** 获取商品的可选属性列表 */
+const getAttrOptions = (item: OrderItem): string[] => {
+    const p = products.value.find((x: any) => x.id === item.productId)
+    if (p && p.productAttr) {
+        return p.productAttr.split(',').map((s: string) => s.trim()).filter((s: string) => s)
+    }
+    return []
+}
+
 const onProductSelect = (item: OrderItem, productId: number) => {
     const p = products.value.find((x: any) => x.id === productId)
     if (p) {
         item.productName = p.name
-        item.productAttr = p.productAttr || ''
+        const attrs = p.productAttr ? p.productAttr.split(',').map((s: string) => s.trim()).filter((s: string) => s) : []
+        item.productAttr = attrs.length > 0 ? attrs[0] : ''
         item.unit = p.unit || ''
         item.price = p.salePrice || p.price || 0
         item.costPrice = p.purchasePrice || p.price || 0
@@ -153,8 +163,14 @@ onMounted(async () => {
                             </el-select>
                         </template>
                     </el-table-column>
-                    <el-table-column label="属性" width="120">
-                        <template #default="{ row }"><el-input v-model="row.productAttr" /></template>
+                    <el-table-column label="属性" width="150">
+                        <template #default="{ row }">
+                            <el-select v-if="getAttrOptions(row).length > 0" v-model="row.productAttr"
+                                placeholder="选择配置" style="width:100%">
+                                <el-option v-for="attr in getAttrOptions(row)" :key="attr" :label="attr" :value="attr" />
+                            </el-select>
+                            <el-input v-else v-model="row.productAttr" placeholder="无可选属性" />
+                        </template>
                     </el-table-column>
                     <el-table-column label="单位" width="80">
                         <template #default="{ row }"><el-input v-model="row.unit" /></template>

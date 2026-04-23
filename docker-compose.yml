@@ -1,0 +1,190 @@
+version: '3.8'
+
+services:
+  # ==================== 基础设施 ====================
+
+  mysql:
+    image: mysql:8.0
+    container_name: ims-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docs:/docker-entrypoint-initdb.d
+    networks:
+      - ims-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  nacos:
+    image: nacos/nacos-server:v2.2.3
+    platform: linux/amd64
+    container_name: ims-nacos
+    environment:
+      MODE: standalone
+      SPRING_DATASOURCE_PLATFORM: ""
+      JVM_XMS: 256m
+      JVM_XMX: 256m
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    networks:
+      - ims-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8848/nacos"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  seata:
+    image: seataio/seata-server:1.7.1
+    container_name: ims-seata
+    environment:
+      SEATA_PORT: 8091
+      STORE_MODE: file
+    ports:
+      - "8091:8091"
+    networks:
+      - ims-network
+
+  # ==================== 业务微服务 ====================
+
+  user-service:
+    build: ./backend/user-service
+    container_name: ims-user-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/user_service_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: 123456
+      NACOS_ADDR: nacos:8848
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    networks:
+      - ims-network
+
+  role-service:
+    build: ./backend/role-service
+    container_name: ims-role-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/role_service_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: 123456
+      NACOS_ADDR: nacos:8848
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    networks:
+      - ims-network
+
+  order-service:
+    build: ./backend/order-service
+    container_name: ims-order-service
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/order_service_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: 123456
+      NACOS_ADDR: nacos:8848
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    networks:
+      - ims-network
+
+  inventory-service:
+    build: ./backend/inventory-service
+    container_name: ims-inventory-service
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/inventory_service_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: 123456
+      NACOS_ADDR: nacos:8848
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    networks:
+      - ims-network
+
+  base-service:
+    build: ./backend/base-service
+    container_name: ims-base-service
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/base_service_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: 123456
+      NACOS_ADDR: nacos:8848
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    networks:
+      - ims-network
+
+  # ==================== API 网关 ====================
+
+  gateway:
+    build: ./backend/gateway-service
+    container_name: ims-gateway
+    ports:
+      - "9090:9090"
+    environment:
+      NACOS_ADDR: nacos:8848
+    depends_on:
+      nacos:
+        condition: service_healthy
+      user-service:
+        condition: service_started
+      role-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+      base-service:
+        condition: service_started
+    networks:
+      - ims-network
+
+  # ==================== 前端 ====================
+
+  frontend:
+    build: ./frontend
+    container_name: ims-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - gateway
+    networks:
+      - ims-network
+
+volumes:
+  mysql-data:
+
+networks:
+  ims-network:
+    driver: bridge

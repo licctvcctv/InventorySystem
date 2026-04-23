@@ -26,8 +26,9 @@ const form = reactive<Order>({
     items: [{ productName: '', productAttr: '', unit: '', quantity: 1, price: 0, costPrice: 0 }]
 })
 
+// 采购单：进货金额 = 成本单价 × 数量（price 始终跟随 costPrice）
 const totalAmount = computed(() =>
-    form.items.reduce((s, i) => s + (i.quantity || 0) * (i.price || 0), 0))
+    form.items.reduce((s, i) => s + (i.quantity || 0) * (i.costPrice || 0), 0))
 const totalCost = computed(() =>
     form.items.reduce((s, i) => s + (i.quantity || 0) * (i.costPrice || 0), 0))
 
@@ -36,11 +37,21 @@ const addItem = () => {
 }
 const removeItem = (idx: number) => { if (form.items.length > 1) form.items.splice(idx, 1) }
 
+/** 获取商品的可选属性列表 */
+const getAttrOptions = (item: OrderItem): string[] => {
+    const p = products.value.find((x: any) => x.id === item.productId)
+    if (p && p.productAttr) {
+        return p.productAttr.split(',').map((s: string) => s.trim()).filter((s: string) => s)
+    }
+    return []
+}
+
 const onProductSelect = (item: OrderItem, productId: number) => {
     const p = products.value.find((x: any) => x.id === productId)
     if (p) {
         item.productName = p.name
-        item.productAttr = p.productAttr || ''
+        const attrs = p.productAttr ? p.productAttr.split(',').map((s: string) => s.trim()).filter((s: string) => s) : []
+        item.productAttr = attrs.length > 0 ? attrs[0] : ''
         item.unit = p.unit || ''
         item.price = p.purchasePrice || p.price || 0
         item.costPrice = p.purchasePrice || p.price || 0
@@ -53,6 +64,8 @@ const handleSubmit = async () => {
     if (form.items.some(i => !i.productName)) return ElMessage.warning('请填写商品名称')
     submitting.value = true
     try {
+        // 采购单：price 同步为 costPrice，保证后端计算一致
+        form.items.forEach(i => { i.price = i.costPrice })
         const data = { ...form, totalCost: totalCost.value, dealAmount: totalAmount.value }
         if (isEdit.value) await updateOrder(data as Order)
         else await createOrder(data as Order)
@@ -139,8 +152,14 @@ onMounted(async () => {
                             </el-select>
                         </template>
                     </el-table-column>
-                    <el-table-column label="属性（配置）" width="140">
-                        <template #default="{ row }"><el-input v-model="row.productAttr" /></template>
+                    <el-table-column label="属性（配置）" width="160">
+                        <template #default="{ row }">
+                            <el-select v-if="getAttrOptions(row).length > 0" v-model="row.productAttr"
+                                placeholder="选择配置" style="width:100%">
+                                <el-option v-for="attr in getAttrOptions(row)" :key="attr" :label="attr" :value="attr" />
+                            </el-select>
+                            <el-input v-else v-model="row.productAttr" placeholder="无可选属性" />
+                        </template>
                     </el-table-column>
                     <el-table-column label="采购单位" width="100">
                         <template #default="{ row }"><el-input v-model="row.unit" /></template>
@@ -152,9 +171,6 @@ onMounted(async () => {
                         <template #default="{ row }"><el-input-number v-model="row.costPrice" :min="0" :precision="2" size="small" /></template>
                     </el-table-column>
                     <el-table-column label="进货金额" width="120">
-                        <template #default="{ row }">¥{{ ((row.quantity || 0) * (row.price || 0)).toFixed(2) }}</template>
-                    </el-table-column>
-                    <el-table-column label="成本金额" width="120">
                         <template #default="{ row }">¥{{ ((row.quantity || 0) * (row.costPrice || 0)).toFixed(2) }}</template>
                     </el-table-column>
                     <el-table-column label="操作" width="80">
@@ -165,7 +181,6 @@ onMounted(async () => {
                 </el-table>
                 <div class="total-bar">
                     进货总额: <span class="amount">¥{{ totalAmount.toFixed(2) }}</span>
-                    &nbsp;&nbsp;成本总额: <span class="amount">¥{{ totalCost.toFixed(2) }}</span>
                     &nbsp;&nbsp;本单欠款: <span class="amount">¥{{ totalAmount.toFixed(2) }}</span>
                 </div>
             </div>

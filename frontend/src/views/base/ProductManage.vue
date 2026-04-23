@@ -134,7 +134,7 @@ onMounted(async () => {
                     <el-col :span="12"><el-form-item label="商品类型"><el-input v-model="form.productType" /></el-form-item></el-col>
                 </el-row>
                 <el-row :gutter="20">
-                    <el-col :span="12"><el-form-item label="商品属性"><el-input v-model="form.productAttr" /></el-form-item></el-col>
+                    <el-col :span="12"><el-form-item label="商品属性"><el-input v-model="form.productAttr" placeholder="多个配置用逗号分隔，如：i5/8G,i7/16G" /></el-form-item></el-col>
                     <el-col :span="12"><el-form-item label="计量单位"><el-input v-model="form.unit" /></el-form-item></el-col>
                 </el-row>
                 <el-row :gutter="20">

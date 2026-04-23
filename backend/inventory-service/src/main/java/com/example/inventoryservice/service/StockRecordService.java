@@ -24,6 +24,7 @@ public class StockRecordService extends ServiceImpl<StockRecordMapper, StockReco
 
     private final ProductMapper productMapper;
     private final WarehouseMapper warehouseMapper;
+    private final com.example.inventoryservice.mapper.InventoryLedgerMapper inventoryLedgerMapper;
 
     private String generateRecordNo(String prefix) {
         String timeStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
@@ -47,6 +48,7 @@ public class StockRecordService extends ServiceImpl<StockRecordMapper, StockReco
         }
         record.setCreatedAt(LocalDateTime.now());
         save(record);
+        syncInventoryLedger(product, record);
     }
 
     @Transactional
@@ -67,6 +69,48 @@ public class StockRecordService extends ServiceImpl<StockRecordMapper, StockReco
         }
         record.setCreatedAt(LocalDateTime.now());
         save(record);
+        syncInventoryLedger(product, record);
+    }
+
+    /**
+     * 入库/出库后自动同步库存台账
+     * 按 productId + warehouseId 查找或新建台账记录，更新 finalStock
+     */
+    private void syncInventoryLedger(Product product, StockRecord record) {
+        if (product == null || record.getWarehouseId() == null) return;
+
+        com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.example.inventoryservice.entity.InventoryLedger> wrapper =
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+        wrapper.eq(com.example.inventoryservice.entity.InventoryLedger::getProductId, product.getId());
+        wrapper.eq(com.example.inventoryservice.entity.InventoryLedger::getWarehouseId, record.getWarehouseId());
+
+        com.example.inventoryservice.entity.InventoryLedger ledger = inventoryLedgerMapper.selectOne(wrapper);
+        if (ledger == null) {
+            ledger = com.example.inventoryservice.entity.InventoryLedger.builder()
+                    .productId(product.getId())
+                    .productCode(product.getProductCode())
+                    .productName(product.getName())
+                    .productType(product.getProductType())
+                    .productAttr(product.getProductAttr())
+                    .unit(product.getUnit())
+                    .finalStock(product.getStock())
+                    .salePrice(product.getSalePrice())
+                    .saleAmount(product.getSalePrice() != null ? product.getSalePrice().multiply(new BigDecimal(product.getStock())) : BigDecimal.ZERO)
+                    .supplierId(product.getSupplierId())
+                    .warehouseId(record.getWarehouseId())
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+            inventoryLedgerMapper.insert(ledger);
+        } else {
+            ledger.setFinalStock(product.getStock());
+            ledger.setProductName(product.getName());
+            ledger.setProductAttr(product.getProductAttr());
+            ledger.setSalePrice(product.getSalePrice());
+            ledger.setSaleAmount(product.getSalePrice() != null ? product.getSalePrice().multiply(new BigDecimal(product.getStock())) : BigDecimal.ZERO);
+            ledger.setUpdatedAt(LocalDateTime.now());
+            inventoryLedgerMapper.updateById(ledger);
+        }
     }
 
     // 保留旧的简单接口兼容

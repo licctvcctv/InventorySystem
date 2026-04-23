@@ -7,10 +7,13 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.example.orderservice.entity.Order;
 import com.example.orderservice.entity.OrderItem;
+import com.example.orderservice.feign.BaseFeignClient;
+import com.example.orderservice.feign.InventoryFeignClient;
 import com.example.orderservice.mapper.OrderItemMapper;
 import com.example.orderservice.mapper.OrderMapper;
 import com.example.orderservice.service.OrderService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,13 +22,17 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements OrderService {
 
     private final OrderItemMapper orderItemMapper;
+    private final InventoryFeignClient inventoryFeignClient;
+    private final BaseFeignClient baseFeignClient;
 
     @Override
+    @io.seata.spring.annotation.GlobalTransactional(rollbackFor = Exception.class)
     @Transactional
     public void createOrder(Order order) {
         String timeStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
@@ -69,6 +76,48 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order> implements
                 orderItemMapper.insert(item);
             }
         }
+
+        // ========== 通过 OpenFeign 联动库存服务和财务服务 ==========
+        // 不 catch 异常：下游失败时 @GlobalTransactional 会回滚整个分布式事务
+        if (order.getItems() != null) {
+            for (OrderItem item : order.getItems()) {
+                if (item.getProductId() == null) continue;
+
+                Map<String, Object> stockRecord = new HashMap<>();
+                stockRecord.put("productId", item.getProductId());
+                stockRecord.put("warehouseId", order.getWarehouseId());
+                stockRecord.put("relatedOrderId", order.getId());
+                stockRecord.put("quantity", item.getQuantity());
+                stockRecord.put("unitPrice", item.getPrice());
+                stockRecord.put("productName", item.getProductName());
+                stockRecord.put("productAttr", item.getProductAttr());
+                stockRecord.put("unit", item.getUnit());
+                stockRecord.put("supplierId", order.getSupplierId());
+                stockRecord.put("remark", "订单 " + order.getOrderNo() + " 自动联动");
+
+                if ("PURCHASE".equals(order.getType())) {
+                    inventoryFeignClient.stockIn(stockRecord);
+                } else if ("SALE".equals(order.getType())) {
+                    inventoryFeignClient.stockOut(stockRecord);
+                }
+            }
+        }
+
+        // 联动财务记录
+        Map<String, Object> financeRecord = new HashMap<>();
+        financeRecord.put("relatedOrderId", order.getId());
+        financeRecord.put("sourceOrderNo", order.getOrderNo());
+        financeRecord.put("amount", order.getTotalAmount());
+        if ("PURCHASE".equals(order.getType())) {
+            financeRecord.put("type", 2); // 支出
+            financeRecord.put("category", "采购支出");
+            financeRecord.put("expenseTarget", order.getSupplierId());
+        } else {
+            financeRecord.put("type", 1); // 收入
+            financeRecord.put("category", "销售收入");
+            financeRecord.put("incomeSource", order.getCustomerId());
+        }
+        baseFeignClient.createFinanceRecord(financeRecord);
     }
 
     @Override
